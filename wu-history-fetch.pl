@@ -24,6 +24,8 @@
 #  I don't try to include superscipt-2 in this code
 #  I just delete 'w/m' and one character more
 
+# time is converted from AM/PM to 24-hour format
+
 # there are four tables on the page:
 #  summary table class="summary-table"
 #   high, low, average of
