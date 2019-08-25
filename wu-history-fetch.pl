@@ -245,9 +245,6 @@ my $wuUrlBase = "https://www.wunderground.com/dashboard/pws/$station/table/";
 my $userAgent = LWP::UserAgent->new;
 $userAgent->agent("Mozilla/8.0");
 
-# for some unknown reason, look_down doesn't find all the tables
-#  or all the table rows, so we use tagname_map
-
 $currentDate = $initialDate;
 while (Date_Cmp($currentDate, $lastDate) < 1) {
   my $currDateStr = UnixDate($currentDate, "%Y-%m-%d");
@@ -258,7 +255,6 @@ while (Date_Cmp($currentDate, $lastDate) < 1) {
   my $result = $userAgent->request($request);
   if ($result->is_success) {
     my $tree;			# full page
-    my $tagMap;			# reused for each map
     my @tables;			# should have four or two (no observations) or zero (no data)
     my $tableBodyTree;		# reused for each table
     my @tableRows;		# reused for each table
@@ -271,12 +267,11 @@ while (Date_Cmp($currentDate, $lastDate) < 1) {
     $tree->warn(1);
     $tree->parse($result->decoded_content) || die;
 
-    $tagMap = $tree->tagname_map();
-    if (!defined %$tagMap{'table'}) {
+    @tables = $tree->look_down('_tag', 'table');
+    if (!scalar(@tables)) {
       logit("No data for $currDateStr\n");
       next;
     }
-    @tables = @{ %$tagMap{'table'} };
     if ((scalar(@tables) != 4) && (scalar(@tables) != 2)) {
       logit("Table count (", scalar(@tables),
 	") wrong at $currDateStr\n");
@@ -298,8 +293,7 @@ while (Date_Cmp($currentDate, $lastDate) < 1) {
     # find the body, then the rows
     # append each value to output line
     $tableBodyTree = $tables[FIRST_TABLE]->look_down('_tag', 'tbody') || die;
-    $tagMap = $tableBodyTree->tagname_map();
-    @tableRows = @{ %$tagMap{'tr'} }; # find all the rows
+    @tableRows = $tableBodyTree->look_down('_tag', 'tr');
     # check header of first row
     $rowHead = $tableRows[0]->look_down('_tag', 'th');
     if ($rowHead->as_text() ne 'Temperature') {
@@ -343,8 +337,7 @@ while (Date_Cmp($currentDate, $lastDate) < 1) {
     }
     # find the body, then the rows
     $tableBodyTree = $tables[SECOND_TABLE]->look_down('_tag', 'tbody') || die;
-    $tagMap = $tableBodyTree->tagname_map();
-    @tableRows = @{ %$tagMap{'tr'} }; # find all the rows
+    @tableRows = $tableBodyTree->look_down('_tag', 'tr');
     # check header of first row
     $rowHead = $tableRows[0]->look_down('_tag', 'th');
     if ($rowHead->as_text() ne 'Wind Speed') {
@@ -394,8 +387,7 @@ while (Date_Cmp($currentDate, $lastDate) < 1) {
     }
     # find the body, then the rows
     $tableBodyTree = $tables[FOURTH_TABLE]->look_down('_tag', 'tbody') || die;
-    $tagMap = $tableBodyTree->tagname_map();
-    @tableRows = @{ %$tagMap{'tr'} }; # find all the rows
+    @tableRows = $tableBodyTree->look_down('_tag', 'tr'); # find all the rows
     foreach my $row (@tableRows) {
       $outputLine = $currDateStr;
       my @tds = $row->look_down('_tag', 'td');
